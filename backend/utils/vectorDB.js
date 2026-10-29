@@ -1,9 +1,15 @@
 const { QdrantClient } = require("@qdrant/js-client-rest")
-
+const crypto = require("crypto")
 const qdrant = new QdrantClient({
     host: "localhost",
     port: 6333
 })
+
+// makes the same UUID every time for the same (document, chunk hash) pair
+function makePointId(documentId, hash) {
+    const h = crypto.createHash("sha256").update(String(documentId) + ":" + hash).digest("hex")
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`
+}
 
 const COLLECTION = "Re-Indexing_CHunks"
 // this collection stores CHUNKS
@@ -65,10 +71,11 @@ async function createDocumentCollection() {
 
 // STORE CHUNKS
 async function storeChunks(embeddedChunks, userId, documentId) {
-    const points = embeddedChunks.map((chunk, i) => ({
-        id: Date.now() + i,
+    const points = embeddedChunks.map((chunk) => ({
+        id: makePointId(documentId, chunk.hash),
         vector: chunk.vector,
         payload: {
+            hash: chunk.hash,
             text: chunk.text,
             source: chunk.source,
             chunkIndex: chunk.chunkIndex,
@@ -77,9 +84,8 @@ async function storeChunks(embeddedChunks, userId, documentId) {
         }
     }))
 
-    await qdrant.upsert(COLLECTION, { points })
+    await qdrant.upsert(COLLECTION, { wait: true, points })
 }
-
 
 // STORE DOCUMENT VECTOR for docs 
 async function storeDocumentVector(userId, documentId, filename, embeddedChunks) {
@@ -99,8 +105,9 @@ async function storeDocumentVector(userId, documentId, filename, embeddedChunks)
 
     // store in document_index collection
     await qdrant.upsert(DOC_COLLECTION, {
+        wait:true,
         points: [{
-            id: Date.now(),
+            id: makePointId(documentId, "document-vector"),
             vector: documentVector,
             payload: {
                 documentId: documentId,
@@ -228,6 +235,34 @@ async function deleteDocumentVector(documentId) {
     })
 }
 
+// GET EXISTING VECTORS BY HASH (so unchanged chunks never need re-embedding)
+async function getChunkVectors(documentId, hashes) {
+    const result = new Map()
+    const BATCH = 200
+    for (let i = 0; i < hashes.length; i += BATCH) {
+        const batch = hashes.slice(i, i + BATCH)
+        const idToHash = new Map(batch.map(h => [makePointId(documentId, h), h]))
+        const points = await qdrant.retrieve(COLLECTION, {
+            ids: [...idToHash.keys()],
+            with_vector: true,
+            with_payload: false
+        })
+        for (const p of points) {
+            result.set(idToHash.get(p.id), p.vector)
+        }
+    }
+    return result
+}
+
+// DELETE SPECIFIC CHUNKS BY HASH
+async function deleteChunksByHashes(documentId, hashes) {
+    const BATCH = 200
+    for (let i = 0; i < hashes.length; i += BATCH) {
+        const ids = hashes.slice(i, i + BATCH).map(h => makePointId(documentId, h))
+        await qdrant.delete(COLLECTION, { wait: true, points: ids })
+    }
+}
+
 module.exports = {
     createCollection,
     createDocumentCollection,
@@ -237,5 +272,8 @@ module.exports = {
     searchDocuments,
     searchChunksFromDocs,
     deleteDocumentChunks,
-    deleteDocumentVector
+    deleteDocumentVector,
+    getChunkVectors,
+    deleteChunksByHashes,
+    makePointId
 }

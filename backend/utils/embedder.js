@@ -61,6 +61,7 @@ async function embedChunks(chunks){
             text:chunk.text,
             source:chunk.source,
             chunkIndex:chunk.chunkIndex,
+            hash:chunk.hash,
             vector:vector
             // everything same as before
             // just vector added on top

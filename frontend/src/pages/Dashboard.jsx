@@ -6,6 +6,7 @@ import {
     uploadDocuments,
     getDocuments,
     deleteDocument,
+    updateDocument,
     searchDocuments,
     askQuestion,
     getHistory
@@ -64,6 +65,8 @@ function Dashboard() {
     const [loading, setLoading] = useState(false)
     const [uploadLoading, setUploadLoading] = useState(false)
     const [error, setError] = useState("")
+    const [updatingId, setUpdatingId] = useState(null)
+    const [updateInfo, setUpdateInfo] = useState("")
     const [activeTab, setActiveTab] = useState("documents")
 
     // System 2 states
@@ -134,6 +137,30 @@ function Dashboard() {
         if(data.success) {
             await loadDocuments()
         }
+    }
+    
+    async function handleUpdate(documentId, e) {
+        const file = e.target.files[0]
+        if(!file) return
+        setUpdatingId(documentId)
+        setError("")
+        setUpdateInfo("")
+
+        const data = await updateDocument(documentId, file)
+        if(data.success && data.unchanged) {
+            setUpdateInfo(data.message)
+        } else if(data.success) {
+            const s = data.stats
+            setUpdateInfo(
+                `Updated to version ${data.version}: ${s.embeddedChunks} of ${s.totalChunks} chunks re-embedded, ` +
+                `${s.reusedChunks} reused, ${s.deletedChunks} removed, ${s.timeMs} ms`
+            )
+            await loadDocuments()
+        } else {
+            setError(data.error || "update failed")
+        }
+        setUpdatingId(null)
+        e.target.value = ""
     }
 
     // =============================================
@@ -312,23 +339,36 @@ function Dashboard() {
                     {uploadLoading && <p>uploading and processing...</p>}
 
                     <h3>Your Documents</h3>
+                     {updateInfo && <p>{updateInfo}</p>}
                     {documents.length === 0 ? (
                         <p>no documents uploaded yet</p>
                     ) : (
-                        documents.map(doc => (
+                                                documents.map(doc => (
                             <div key={doc._id} className="document-item">
                                 <div>
                                     <p className="doc-name">{doc.filename}</p>
                                     <p className="doc-info">
-                                        {doc.totalChunks} chunks
+                                        {doc.totalChunks} chunks · v{doc.version || 1}
                                     </p>
                                 </div>
-                                <button
-                                    onClick={() => handleDelete(doc._id)}
-                                    className="delete-btn"
-                                >
-                                    Delete
-                                </button>
+                                <div style={{ display: "flex", gap: "8px" }}>
+                                    <label className="delete-btn" style={{ cursor: "pointer" }}>
+                                        {updatingId === doc._id ? "updating..." : "Update"}
+                                        <input
+                                            type="file"
+                                            accept=".pdf"
+                                            style={{ display: "none" }}
+                                            disabled={updatingId !== null}
+                                            onChange={(e) => handleUpdate(doc._id, e)}
+                                        />
+                                    </label>
+                                    <button
+                                        onClick={() => handleDelete(doc._id)}
+                                        className="delete-btn"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
                         ))
                     )}

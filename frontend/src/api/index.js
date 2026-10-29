@@ -98,3 +98,15 @@ export async function getHistory() {
     })
     return res.json()
 }
+
+export async function updateDocument(documentId, file) {
+    const formData = new FormData()
+    formData.append("document", file)
+    // field name "document" must match upload.single("document") on the backend
+    const res = await fetch(`${BASE_URL}/documents/${documentId}/update`, {
+        method: "PUT",
+        credentials: "include",
+        body: formData
+    })
+    return res.json()
+}
