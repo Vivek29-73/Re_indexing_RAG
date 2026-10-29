@@ -5,11 +5,11 @@ const qdrant = new QdrantClient({
     port: 6333
 })
 
-const COLLECTION = "HTL-Documents"
+const COLLECTION = "Re-Indexing_CHunks"
 // this collection stores CHUNKS
 
 
-const DOC_COLLECTION = "document_index"
+const DOC_COLLECTION = "Re-Indexing_document_chunks"
 // this NEW collection stores DOCUMENT vectors one vect for doc
 
 // CREATE CHUNKS COLLECTION 

@@ -16,6 +16,23 @@ const documentSchema=new mongoose.Schema({
         type:Number,
         default:0
     },
+
+      chunkHashes:{
+        type:[String],
+        default:[]
+    },
+
+    // fingerprint of the whole document text; if it is identical on re-upload we skip all work
+    contentHash:{
+        type:String,
+        default:""
+    },
+
+    // starts at 1 and goes up by 1 every time the document is updated
+    version:{
+        type:Number,
+        default:1
+    },
     status:{
         type:String,
         enum:["processing","ready","failed"],

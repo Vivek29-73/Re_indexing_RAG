@@ -2,7 +2,7 @@
 // all backend API calls in one place
 // makes it easy to change base URL later
 
-const BASE_URL = "http://localhost:5000/api"
+const BASE_URL = "http://localhost:5001/api"
 
 export async function registerUser(name, email, password) {
     const res = await fetch(`${BASE_URL}/auth/register`, {

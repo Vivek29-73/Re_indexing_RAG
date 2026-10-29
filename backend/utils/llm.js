@@ -32,7 +32,7 @@ async function askLLM(question,chunks){
     -Just give the answer directly without referencing where it came from`// //based only on context"prvents AI hallucination"
     //send to qroq
     const response =await groq.chat.completions.create({
-        model:"llama-3.1-8b-instant",//8b->8 billion params 8192->context window (how much text it can read)
+        model:"openai/gpt-oss-20b",
     
         messages:[
             {
