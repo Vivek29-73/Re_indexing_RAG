@@ -40,12 +40,29 @@ function splitLongParagraph(paragraph) {
     return pieces;
 }
 
+// split raw text into paragraphs.
+// 1) blank lines always separate paragraphs.
+// 2) many PDFs have NO blank lines, only line breaks, so inside a block we also
+//    start a new paragraph after any line that ends a sentence (. ! ? or :).
+function splitIntoParagraphs(rawText) {
+    const blocks = rawText.replace(/\r\n/g, "\n").split(/\n\s*\n/)
+    const paragraphs = []
+    for (const block of blocks) {
+        let current = []
+        for (const line of block.split("\n")) {
+            current.push(line)
+            if (/[.!?:]["')\]]?\s*$/.test(line)) {
+                paragraphs.push(current.join(" "))
+                current = []
+            }
+        }
+        if (current.length > 0) paragraphs.push(current.join(" "))
+    }
+    return paragraphs.map(normalizeText).filter(p => p.length > 0)
+}
+
 function chunkParagraphs(rawText, filename) {
-    const paragraphs = rawText
-        .replace(/\r\n/g, "\n")
-        .split(/\n\s*\n/)
-        .map(normalizeText)
-        .filter(p => p.length > 0);
+        const paragraphs = splitIntoParagraphs(rawText);
 
     const units = [];
     for (const p of paragraphs) {
